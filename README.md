@@ -13,17 +13,19 @@ A high-performance 2D particle-based fluid simulator implemented in both **pure 
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Core Functions & Components](#core-functions--components)
-- [Performance Comparison](#performance-comparison)
-- [Project Structure](#project-structure)
-- [Technical Details](#technical-details)
-- [Contributing](#contributing)
-- [License](#license)
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Core Functions & Components](#-core-functions--components)
+- [Performance Comparison](#-performance-comparison)
+- [Project Structure](#-project-structure)
+- [Technical Details](#-technical-details)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
+- [Further Reading](#-further-reading)
 
 ---
 
