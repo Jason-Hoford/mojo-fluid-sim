@@ -307,6 +307,24 @@ mojo run fluid_sim_core_3d_v1.mojo | python fluid_render_client_3d.py
 
 The Mojo program will run the simulation and stream data to Python for rendering.
 
+#### Interactive 3D Mojo Version (binary protocol)
+
+The interactive 3D mode uses a **binary command protocol** instead of text lines:
+- The Python renderer (`mojo-simulation-interactive/fluid_render_client_interactive.py`) starts the Mojo simulation (`fluid_sim_core_3d_interactive.mojo`) as a subprocess.
+- Python sends small binary commands to Mojo over `stdin`:
+  - `CMD_STEP` (1): Advance the simulation by one fixed time step and return a full frame.
+  - `CMD_RESIZE` (2): Update the 3D bounds size (width, height, depth) at runtime.
+  - `CMD_QUIT` (3): Cleanly shut down the simulation.
+- Mojo responds with a binary header and packed arrays of positions and velocities for all particles.
+
+**Running the interactive 3D version:**
+```bash
+cd mojo-simulation-interactive
+python fluid_render_client_interactive.py
+```
+
+In this mode, Python fully controls when the simulation steps and can resize the bounds while the simulation is running.
+
 **Note for Windows/WSL users**: Make sure you're running this command inside your WSL environment (after running `wsl` and entering your pixi shell if using pixi).
 
 ---
@@ -466,6 +484,14 @@ The spatial hashing optimization dramatically improves performance scaling for 3
 - `v3_cross(a, b)`: 3D cross product for camera orientation
 - `main()`: Main loop with camera controls (mouse drag, arrow keys, zoom), reads from stdin and renders
 
+#### Interactive 3D Renderer (`mojo-simulation-interactive/fluid_render_client_interactive.py`)
+
+- Starts `fluid_sim_core_3d_interactive.mojo` as a subprocess using `subprocess.Popen`
+- Sends binary commands (`CMD_STEP`, `CMD_RESIZE`, `CMD_QUIT`) to Mojo over `stdin`
+- Receives a binary header (`frame_idx`, `particle_count`, `collision_events`, bounds, scenario state) and packed positions/velocities
+- Uses perspective projection and camera controls similar to the standard 3D renderer
+- Adds interactive controls for resizing the 3D bounds at runtime using keyboard shortcuts (e.g., `[` and `]` keys)
+
 ---
 
 ## 📊 Performance Comparison
@@ -521,12 +547,16 @@ mojo-fluid-sim/
 │   ├── fluid_render_client.py   # Python 2D renderer
 │   └── TotrialWindowsMoJo.md    # Windows installation tutorial (WSL + pixi)
 │
-├── mojo-simulation-3D/          # Mojo + Python hybrid 3D implementation
-│   ├── fluid_sim_core_3d.mojo   # Mojo 3D simulation logic (original, brute-force)
+├── mojo-simulation-3D/           # Mojo + Python hybrid 3D implementation
+│   ├── fluid_sim_core_3d.mojo    # Mojo 3D simulation logic (original, brute-force)
 │   ├── fluid_sim_core_3d_v1.mojo # Optimized 3D version with spatial hashing
 │   └── fluid_render_client_3d.py # Python 3D renderer with perspective projection
 │
-└── Assets/                      # GIF files and other assets
+├── mojo-simulation-interactive/  # Mojo + Python interactive 3D implementation
+│   ├── fluid_sim_core_3d_interactive.mojo   # Mojo 3D core with binary STEP/RESIZE/QUIT protocol
+│   └── fluid_render_client_interactive.py   # Python interactive 3D renderer (spawns Mojo subprocess)
+│
+└── Assets/                       # GIF files and other assets
     ├── python_fluid_sim.gif     # Python 2D version demo
     ├── mojo_fluid_sim.gif       # Mojo 2D version demo
     ├── python_3d_whirlpool.gif  # Python 3D whirlpool scenario demo
