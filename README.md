@@ -54,7 +54,9 @@ This project implements **Smoothed Particle Hydrodynamics (SPH)**-based fluid si
 
 1. **Pure Python Version** (`fluid_sim_3d_scenarios.py`): A complete, self-contained 3D implementation with scenario support (e.g., whirlpool effects). Features perspective projection, camera controls, and speed-based particle coloring.
 
-2. **Mojo + Python Hybrid** (`mojo-simulation-3D/`): A high-performance 3D implementation where:
+2. **GPU-Accelerated Python Version** (`fluid_sim_gpu.py`): A Taichi-based 3D SPH implementation that runs on the GPU (CUDA/Vulkan/CPU fallback). It mirrors the Mojo physics (smoothing kernels, pressure, viscosity, whirlpool scenario) and adds dynamic, interactive bounds control in a 3D window.
+
+3. **Mojo + Python Hybrid** (`mojo-simulation-3D/`): A high-performance 3D implementation where:
    - **Mojo** (`fluid_sim_core_3d.mojo` or `fluid_sim_core_3d_v1.mojo`) handles all computation-intensive simulation logic
    - **Python** (`fluid_render_client_3d.py`) handles 3D rendering with perspective projection and camera controls
    - Communication happens via **stdin/stdout pipe**, maintaining the same architecture as the 2D version
@@ -210,7 +212,8 @@ The 3D implementation extends the 2D SPH algorithm to three dimensions with addi
 ### Prerequisites
 
 - **Python 3.8+**
-- **pygame** (`pip install pygame`)
+- **pygame** (`pip install pygame`) for the 2D/3D Python visualizations
+- **taichi** (`pip install taichi`) for the GPU-accelerated 3D Python version (`fluid_sim_gpu.py`)
 - **Mojo** (for the hybrid version) - [Install Mojo](https://docs.modular.com/mojo/manual/get-started/)
 
 ### Setup
@@ -270,6 +273,16 @@ python fluid_sim_3d_scenarios.py
 ```
 
 The 3D version includes scenario support (e.g., whirlpool effects) and can be configured by modifying the parameters in the file. The simulation features perspective projection, camera controls, and speed-based particle coloring.
+
+#### 3D GPU Simulation (Taichi)
+
+Run the GPU-accelerated 3D Python implementation (uses Taichi to target CUDA/Vulkan/CPU):
+
+```bash
+python fluid_sim_gpu.py
+```
+
+This version keeps the same SPH physics and whirlpool behavior, but offloads the heavy neighbor search and force calculations to the GPU. It also adds rich 3D controls for camera movement and dynamic resizing of the simulation bounds in real time.
 
 ### Mojo + Python Hybrid
 
@@ -423,6 +436,39 @@ In this mode, Python fully controls when the simulation steps and can resize the
 - `_draw()`: Render 3D simulation state with depth sorting
 - `run()`: Main game loop with camera controls
 
+### GPU 3D Implementation (`fluid_sim_gpu.py`)
+
+This file implements a 3D SPH fluid simulator using **Taichi** to run the core simulation on the GPU:
+
+- **Fields & Data Layout**
+  - `pos`, `vel`, `dens`, `pressure`, `colors`: Taichi vector fields storing particle state on the GPU
+  - `grid_num_particles`, `grid2particles`: 3D grid-based spatial hash for fast neighbor lookup
+  - `bounds`, `grid_res`, `whirlpool_active`, `whirlpool_time`, `simulation_time`: zero-dimensional fields for global simulation state
+
+- **Core Kernels**
+  - `init_particles()`: Spawns particles in a 3D block inside the bounds, with jitter and initial colors
+  - `update_grid()`: Rebuilds the spatial grid each step (fills `grid_num_particles` and `grid2particles`)
+  - `compute_densities()`: Computes density and near-density using 27-cell neighborhood and SPH kernels
+  - `compute_forces()`: Applies pressure, viscosity, gravity, and whirlpool forces to update velocities
+  - `integrate()`: Integrates positions, handles collisions with dynamic bounds, and updates speed-based colors
+  - `update_whirlpool(dt)`: Advances whirlpool phase over time when active
+
+- **Whirlpool & Dynamic Bounds**
+  - `whirlpool_force(...)`: Matches the Mojo whirlpool behavior (tangential, inward, and downward components)
+  - `set_bounds(new_bounds)`: Updates bounds and grid resolution at runtime, keeping particles inside
+  - `create_box_visualization(b)`: Builds a line-box mesh to render the current 3D container
+
+- **Main Loop (`main()`)**
+  - Creates a Taichi `Window`, `Scene`, and `Camera`
+  - Keyboard controls:
+    - **RMB + drag**: Rotate camera, **W/A/S/D/Q/E**: move camera, **mouse wheel**: zoom
+    - **SPACE**: pause/resume
+    - **H**: toggle whirlpool on/off (auto-activates after `SCENARIO_ACTIVATION_TIME`)
+    - **N/M**: uniformly shrink/grow all bounds
+    - **Z/X**, **C/V**, **B/G**: shrink/grow X, Y, Z bounds individually
+    - **ESC**: exit
+  - Renders particles (with per-vertex colors), the bounds box, and an optional whirlpool radius marker
+
 ### Mojo Implementation (2D)
 
 #### `mojo-simulation-2D/fluid_sim_core.mojo` (Original)
@@ -538,8 +584,9 @@ mojo-fluid-sim/
 ├── README.md                    # This file
 ├── requirements.txt             # Python dependencies
 │
-├── fluid_sim_2d.py             # Pure Python 2D implementation (standalone)
-├── fluid_sim_3d_scenarios.py   # Pure Python 3D implementation with scenarios (standalone)
+├── fluid_sim_2d.py              # Pure Python 2D implementation (standalone)
+├── fluid_sim_3d_scenarios.py    # Pure Python 3D implementation with scenarios (standalone)
+├── fluid_sim_gpu.py             # GPU-accelerated 3D Python implementation using Taichi
 │
 ├── mojo-simulation-2D/          # Mojo + Python hybrid 2D implementation
 │   ├── fluid_sim_core.mojo      # Mojo 2D simulation logic (original, brute-force)
@@ -605,7 +652,7 @@ Contributions are welcome! Areas for improvement:
 - [x] Add spatial hashing to Mojo 2D version (implemented in `fluid_sim_core_v1.mojo`)
 - [x] Add 3D version (implemented in `fluid_sim_3d_scenarios.py` and Mojo versions)
 - [x] Add spatial hashing to Mojo 3D version (implemented in `fluid_sim_core_3d_v1.mojo`)
-- [ ] Implement GPU acceleration (CUDA/OpenCL)
+- [x] Prototype GPU acceleration using Taichi for 3D (`fluid_sim_gpu.py`)
 - [ ] Improve visualization (shaders, better gradients)
 - [ ] Add more interaction modes
 - [ ] Add more 3D scenarios (e.g., fountain, dam break)
